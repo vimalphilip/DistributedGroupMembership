@@ -40,11 +40,7 @@ func sendMsg(msg message, targetHosts [] string){
 		conn, err :=net.DialUDP("udp", localAddr, serverAddr)
 		errorCheck(err)
 		
-/*		Packet loss check and proceed
-		randNum := rand.Intn(100)
-		fmt.Print("Random number")
-		
-		*/
+		//TODO Packet Loss
 		_, err = conn.Write(buf.Bytes())
 		errorCheck(err)
 	}
