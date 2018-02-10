@@ -163,6 +163,7 @@ func messageServer(){
 						go writeMLtoFile();
 						sendList()
 				case "Leaving":
+						//TODO implement the function and check error conditions
 						propagateMsg(msg)
 				case "Acknowledgement":
 						if msg.host == membershipList[(getIndex()+1)%len(membershipList)].host {
