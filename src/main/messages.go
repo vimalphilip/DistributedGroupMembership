@@ -21,6 +21,7 @@ import (
 func sendMsg(msg message, targetHosts [] string){
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(msg); err != nil {
+		fmt.Println("Error :", err)
 		errorCheck(err)
 	}
 	
@@ -29,18 +30,22 @@ func sendMsg(msg message, targetHosts [] string){
 	errorCheck(err)
 	
 	for _, host := range targetHosts {
-		if msg.status == "Leaving Group" || msg.status == "Failed" {
+		if msg.Status == "Leaving Group" || msg.Status == "Failed" {
 			fmt.Println( "Propogating ", msg, " to :", host)  
 		}
 		ip, _, _ := net.ParseCIDR(host)
 		
-		serverAddr, err := net.ResolveUDPAddr("udp",ip.String()+ ":10000")
+		serverAddr, err := net.ResolveUDPAddr("udp",ip.String()+ ":8010")
 		errorCheck(err)
 		
 		conn, err :=net.DialUDP("udp", localAddr, serverAddr)
 		errorCheck(err)
 		
-		//TODO Packet Loss
+/*		Packet loss check and proceed
+		randNum := rand.Intn(100)
+		fmt.Print("Random number")
+		
+		*/
 		_, err = conn.Write(buf.Bytes())
 		errorCheck(err)
 	}
@@ -62,6 +67,7 @@ func sendAck(){
 //Message sent to introducer from a VM to connect to the group
 func connectToIntroducer(){ 
 	msg := message{currHost, "Joining", time.Now().Format(time.RFC850)}
+	fmt.Println("Message transfered: ", msg)
 	var targetHosts = make([]string, 1)
 	targetHosts[0] = INTRODUCER
 

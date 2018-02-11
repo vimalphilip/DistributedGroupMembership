@@ -13,7 +13,7 @@ import (
 )
 
 //Declare constants
-const INTRODUCER = "<IPAddress>"			//1.	IP Address of the introducer 
+const INTRODUCER = "172.31.36.139/22"			//1.	IP Address of the introducer 
 const FILE_PATH = "MembershipList.txt"		//2.  	File path of membership list
 const MAX_TIME = time.Millisecond * 2500	//3.	Max time a VM has to wait for the Syn/Ack message
 
@@ -31,23 +31,23 @@ var resetFlags [2]int
 
 
 //Message object passed b/w client and server
-type message struct{
-	host string
-	status string
-	timestamp string
+type message struct {
+	Host string
+	Status string
+	Timestamp string
 }
 
 //Information kept for each VM in the group stored in membership list
-type member struct{
-	host string
-	timestamp string
+type member struct {
+	Host string
+	Timestamp string
 }
 
 //type and functions used to sort membershipLists
 type memList []member
 //TODO functions to sort the membershipList
 func (slice memList) Len() int           { return len(slice) }
-func (slice memList) Less(i, j int) bool { return slice[i].host < slice[j].host }
+func (slice memList) Less(i, j int) bool { return slice[i].Host < slice[j].Host }
 func (slice memList) Swap(i, j int)      { slice[i], slice[j] = slice[j], slice[i] }
 
 	
@@ -59,7 +59,8 @@ var infolog *log.Logger
 
 func main(){
 	
-	//start
+	//setup and initialize starting variables
+	setupAndInitialize()
 	//start all the VM's to receive connections and messages from 1) Connected VM's 2) Introducer when new VM's join 
 	
 	//1)
@@ -71,9 +72,19 @@ func main(){
 	//Reader to take console input from the user
 	reader := bufio.NewReader(os.Stdin)
 	
-	//  check if the current host = introducer and if yes follow the steps to store membershipList as a local file
-	   // if membership file exists, check if user wants to restart the server using the file or start a new group
-	   
+	//Check if the VM is the introducer
+	if currHost == INTRODUCER {
+		//If membershipList file exists, check if user wants to restart server using
+		//the file or start a new group
+		//If VM is the introducer, follow protocol for storing membershipList as a local file
+		if _, err := os.Stat(FILE_PATH); os.IsNotExist(err) {
+			writeMLtoFile()
+		} else {
+			//TODO Logic to read file from the directory and convert to membershipList
+			}
+	}
+	
+	
 	// start sending sync functions and check for acks in seperate threads
 	go sendSyn()
 	go checkLastAck(1)
@@ -131,7 +142,7 @@ func main(){
 
 func messageServer(){
 	// We need to implement UDP to make it light weight for the heartbeat messages
-	serverAddress, err := net.ResolveUDPAddr("udp", "address")
+	serverAddress, err := net.ResolveUDPAddr("udp", ":8010")
 	errorCheck(err)
 	serverConn, err := net.ListenUDP("udp", serverAddress)
 	errorCheck(err)
@@ -148,9 +159,9 @@ func messageServer(){
 			gob.NewDecoder(bytes.NewReader(buf[:n])).Decode(&msg)
 			
 			//Different cases 
-			switch msg.status {
+			switch msg.Status {
 				case "Joining":
-						node := member{msg.host, time.Now().Format(time.RFC850)}  //TODO check time format
+						node := member{msg.Host, time.Now().Format(time.RFC850)}  //TODO check time format
 						//todo check all conditions and if ok append to the membership list
 						if checkTimeStamp(node) == 0 {
 							//create a lock
@@ -163,16 +174,15 @@ func messageServer(){
 						go writeMLtoFile();
 						sendList()
 				case "Leaving":
-						//TODO implement the function and check error conditions
 						propagateMsg(msg)
 				case "Acknowledgement":
-						if msg.host == membershipList[(getIndex()+1)%len(membershipList)].host {
+						if msg.Host == membershipList[(getIndex()+1)%len(membershipList)].Host {
 							fmt.Print("ACK received from ")
-							fmt.Println(msg.host)
+							fmt.Println(msg.Host)
 							timers[0].Reset(MAX_TIME)
-						}else if msg.host == membershipList[(getIndex()+2)%len(membershipList)].host {
+						}else if msg.Host == membershipList[(getIndex()+2)%len(membershipList)].Host {
 							fmt.Print("ACK received from ")
-							fmt.Println(msg.host)
+							fmt.Println(msg.Host)
 							timers[1].Reset(MAX_TIME)
 						}
 			}
@@ -184,7 +194,7 @@ func messageServer(){
 func introducerMachineServer() {
 	//Listens to messages from introducer
 	
-	serverAddress, err := net.ResolveUDPAddr("udp", "address")
+	serverAddress, err := net.ResolveUDPAddr("udp", ":8011")
 	errorCheck(err)
 	serverConn, err := net.ListenUDP("udp", serverAddress)
 	errorCheck(err)
@@ -209,7 +219,7 @@ func introducerMachineServer() {
 		var msg = "New VM joined the group: \n\t["
 		var size = len(mList) - 1
 		for i, host := range mList {
-			msg += "(" + host.host + " | " + host.timestamp + ")"
+			msg += "(" + host.Host + " | " + host.Timestamp + ")"
 			if i != size {
 				msg += ", \n\t"
 			} else {

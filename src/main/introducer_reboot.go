@@ -1,7 +1,11 @@
 package main
 
 import (
-
+		
+		"os"
+		"fmt"
+		"strings"
+		"bufio"
 )
 
 /*
@@ -17,6 +21,16 @@ func checkTimeStamp(m member) int {
 
 //Helper function to write membershipList to file
 func writeMLtoFile(){
+	if strings.Compare(currHost, INTRODUCER) == 0 {
+		f, err := os.Create(FILE_PATH)
+		errorCheck(err)
+		defer f.Close()
+		writer := bufio.NewWriter(f)
+		for _, element := range membershipList {
+			fmt.Fprintln(writer, element.Host)
+		}
+		writer.Flush()
+	}
 	
 }
 
