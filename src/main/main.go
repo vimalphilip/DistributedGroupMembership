@@ -13,7 +13,7 @@ import (
 )
 
 //Declare constants
-const INTRODUCER = "172.31.36.139/22"			//1.	IP Address of the introducer 
+const INTRODUCER = "172.31.36.139/20"		//1.	IP Address of the introducer 
 const FILE_PATH = "MembershipList.txt"		//2.  	File path of membership list
 const MAX_TIME = time.Millisecond * 2500	//3.	Max time a VM has to wait for the Syn/Ack message
 
@@ -112,11 +112,15 @@ func main(){
 		case "2\n":
 			fmt.Println(currHost)
 		case "3\n":
-			if currHost != INTRODUCER && isConnected == 0 {
-				fmt.Println("Joining group")
-				connectToIntroducer()
-				infoCheck(currHost + " is connecting to introducer")
-				isConnected = 1
+			if currHost != INTRODUCER  {
+				if isConnected == 0 {
+					fmt.Println("Joining group")
+					connectToIntroducer()
+					infoCheck(currHost + " is connecting to introducer")
+					isConnected = 1
+				} else {
+					fmt.Println("I am already connected to the group")
+				}
 			} else {
 				fmt.Println("I am the introducer")
 			}
@@ -226,6 +230,7 @@ func introducerMachineServer() {
 				msg += "]"
 			}
 		}
+		fmt.Println("Message received: ", msg)
 		infoCheck(msg)
 	}
 }

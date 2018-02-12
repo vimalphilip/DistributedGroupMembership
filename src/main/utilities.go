@@ -5,6 +5,7 @@ import (
 	"time"
 	"net"
 	"log"
+	"fmt"
 	
 )
 
@@ -36,6 +37,7 @@ func getIndex() int {
 //Helper function to log errors
 func errorCheck(err error) {
 	if err != nil {
+		fmt.Println("ERROR : ", err)
 		errlog.Println(err)
 	}
 }

@@ -21,7 +21,6 @@ import (
 func sendMsg(msg message, targetHosts [] string){
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(msg); err != nil {
-		fmt.Println("Error :", err)
 		errorCheck(err)
 	}
 	
@@ -37,7 +36,7 @@ func sendMsg(msg message, targetHosts [] string){
 		
 		serverAddr, err := net.ResolveUDPAddr("udp",ip.String()+ ":8010")
 		errorCheck(err)
-		
+		fmt.Println("Local Address: ", localAddr, "ServerAddress: ", serverAddr)
 		conn, err :=net.DialUDP("udp", localAddr, serverAddr)
 		errorCheck(err)
 		
@@ -95,6 +94,27 @@ func propagateMsg(msg message) {
 
 
 //Called by the introducer if a new member joins the group
-func sendList(){
-	
+func sendList() {
+	var buf bytes.Buffer
+	if err := gob.NewEncoder(&buf).Encode(membershipList); err != nil {
+		errorCheck(err)
+	}
+	for index, element := range membershipList {
+		if element.Host != currHost {
+			ip, _, _ := net.ParseCIDR(membershipList[index].Host)
+
+			ServerAddr, err := net.ResolveUDPAddr("udp", ip.String()+":8011")
+			errorCheck(err)
+
+			localip, _, _ := net.ParseCIDR(currHost)
+			LocalAddr, err := net.ResolveUDPAddr("udp", localip.String()+":0")
+			errorCheck(err)
+
+			conn, err := net.DialUDP("udp", LocalAddr, ServerAddr)
+			errorCheck(err)
+
+			_, err = conn.Write(buf.Bytes())
+			errorCheck(err)
+		}
+	}
 }
