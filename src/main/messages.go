@@ -29,7 +29,7 @@ func sendMsg(msg message, targetHosts [] string){
 	errorCheck(err)
 	
 	for _, host := range targetHosts {
-		if msg.Status == "Leaving Group" || msg.Status == "Failed" {
+		if msg.Status == "Leaving" || msg.Status == "Failed" {
 			fmt.Println( "Propogating ", msg, " to :", host)  
 		}
 		ip, _, _ := net.ParseCIDR(host)
@@ -74,7 +74,21 @@ func connectToIntroducer(){
 	
 }
 
+//Leave group
+//Message sent to previous 2 VM's in membershiplist notifying that the VM is leaving the group
 func leaveGroup(){
+	msg := message{currHost, "Leaving", time.Now().Format(time.RFC850)}
+	
+	var targetHosts = make([]string, 2) //make a string array of size 2 to send to previous 2 VM's
+	for i := 1; i < 3; i++ {
+		var targetHostIndex = (getIndex() - i) % len(membershipList)
+		if targetHostIndex < 0 {
+			targetHostIndex = len(membershipList) + targetHostIndex
+		}
+		targetHosts[i-1] = membershipList[targetHostIndex].Host
+	}
+
+	sendMsg(msg, targetHosts)
 
 }
 
@@ -89,6 +103,25 @@ If member is there in the membershipList, call updateML to compare the timestamp
 The message is then propogated to the next 2 VM's in the membershipList 
 */
 func propagateMsg(msg message) {
+	var hostIndex = -1
+	for i, element := range membershipList {
+		if msg.Host == element.Host {
+			hostIndex = i
+			break
+		}
+	}
+	if hostIndex == -1 {  // case where node is already removed and hence could not find the node in the Mlist
+		return
+	}
+
+	// msgCheck(msg)
+	updateML(hostIndex, msg)
+
+	var targetHosts = make([]string, 2)
+	targetHosts[0] = membershipList[(getIndex()+1)%len(membershipList)].Host
+	targetHosts[1] = membershipList[(getIndex()+2)%len(membershipList)].Host
+
+	sendMsg(msg, targetHosts)
 		
 }
 

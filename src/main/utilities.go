@@ -18,8 +18,19 @@ func initializeML(){
 }
 
 
-func updateML(){
+// returns 0 if not update, 1 if update
+func updateML(hostIndex int, msg message) int {
+	localTime, _ := time.Parse(time.RFC850, membershipList[hostIndex].Timestamp)
+	givenTime, _ := time.Parse(time.RFC850, msg.Timestamp)
 
+	if givenTime.After(localTime) {
+		membershipList = append(membershipList[:hostIndex], membershipList[hostIndex+1:]...)
+		go writeMLtoFile()
+		return 1
+	} else {
+		//CHECK THIS LATER
+		return 0
+	}
 }
 
 //get index for local VM in membershipList

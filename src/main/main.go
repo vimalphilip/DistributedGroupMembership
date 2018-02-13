@@ -178,6 +178,7 @@ func messageServer(){
 						go writeMLtoFile();
 						sendList()
 				case "Leaving":
+						resetTimers()
 						propagateMsg(msg)
 				case "Acknowledgement":
 						if msg.Host == membershipList[(getIndex()+1)%len(membershipList)].Host {
