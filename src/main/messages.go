@@ -36,7 +36,6 @@ func sendMsg(msg message, targetHosts [] string){
 		
 		serverAddr, err := net.ResolveUDPAddr("udp",ip.String()+ ":8010")
 		errorCheck(err)
-		fmt.Println("Local Address: ", localAddr, "ServerAddress: ", serverAddr)
 		conn, err :=net.DialUDP("udp", localAddr, serverAddr)
 		errorCheck(err)
 		
@@ -53,13 +52,30 @@ func sendMsg(msg message, targetHosts [] string){
 
 }
 
-func sendSync(){
-	
+
+//VM's ping the next 2 members in the membershipList for an ACK
+func sendSyn() {
+	for {
+		N := len(membershipList)
+		if N >= MIN_HOSTS {
+			msg := message{getIP(), "SYN", time.Now().Format(time.RFC850)}
+			var targetHosts = make([]string, 2)
+			targetHosts[0] = membershipList[(getIndex()+1)%len(membershipList)].Host
+			targetHosts[1] = membershipList[(getIndex()+2)%len(membershipList)].Host
+
+			sendMsg(msg, targetHosts)
+		}
+		time.Sleep(1 * time.Second)
+	}
 }
 
+//Called when a VM receives a SYN. An ACK is sent back to the VM which sent the SYN
+func sendAck(host string) {
+	msg := message{currHost, "ACK", time.Now().Format(time.RFC850)}
+	var targetHosts = make([]string, 1)
+	targetHosts[0] = host
 
-func sendAck(){
-
+	sendMsg(msg, targetHosts)
 }
 
 

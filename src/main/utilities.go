@@ -6,7 +6,8 @@ import (
 	"net"
 	"log"
 	"fmt"
-	
+	"strings"
+	"math/rand"
 )
 
 //utility or helper methods
@@ -77,10 +78,21 @@ func setupAndInitialize() {
 	timers[0].Stop()
 	timers[1].Stop()
 	
+	rand.Seed(time.Now().UTC().UnixNano())
+	
+	logfile_exists := 1
+	if _, err := os.Stat("logfile.log"); os.IsNotExist(err) {
+		logfile_exists = 0
+	}
+	
 	logfile, _ := os.OpenFile("logfile.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	errlog = log.New(logfile, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
 	infolog = log.New(logfile, "INFO: ", log.Ldate|log.Ltime)
 
+	
+	if logfile_exists == 1 {
+		//TODO
+	}
 	
 }
 
@@ -91,4 +103,16 @@ func getIP() string {
 		errorCheck(err)
 	}
 	return addrs[1].String()
+}
+
+/*Takes the host for a member and checks its index with the index for the local VM. Returns 1 if
+host is (localIndex + 1)%N or 2 if host is (localIndex + 2)%N, where N is size of membershipList*/
+func getRelativeIndex(host string) int {
+	localIndex := getIndex()
+	if strings.Compare(membershipList[(localIndex+1)%len(membershipList)].Host, host) == 0 {
+		return 1
+	} else if strings.Compare(membershipList[(localIndex+2)%len(membershipList)].Host, host) == 0 {
+		return 2
+	}
+	return -1
 }
