@@ -10,17 +10,19 @@ import (
 	"os"
 	"net"
 	"sort"
+	"sync"
 )
 
 //Declare constants
-const INTRODUCER = "172.31.36.139/20"		//1.	IP Address of the introducer 
-const FILE_PATH = "MembershipList.txt"		//2.  	File path of membership list
-const MAX_TIME = time.Millisecond * 2500	//3.	Max time a VM has to wait for the Syn/Ack message
+const INTRODUCER = "172.31.36.139/20"		//IP Address of the introducer 
+const FILE_PATH = "MembershipList.txt"		//File path of membership list
+const MAX_TIME = time.Millisecond * 2500	//Max time a VM has to wait for the Syn/Ack message
+const MIN_HOSTS = 5 						//Minimum number of VM's in the group before Syn/Ack begins
 
 
-var currHost string    				//	IP of the local machine
-var isConnected int 				//  1(Connected) or 0(Not connected) -> Boolean value to check if machine is currently connected to the group
-var membershipList = make([]member, 0)	//Contains all members connected to the group
+var currHost string    						//	IP of the local machine
+var isConnected int 						//  1(Connected) or 0(Not connected) -> Boolean value to check if machine is currently connected to the group
+var membershipList = make([]member, 0)		//Contains all members connected to the group
 
 
 //We need 2 timers to keep track of the connected nodes
@@ -29,6 +31,8 @@ var timers [2]*time.Timer
 //1 = timers were forcefully stopped
 var resetFlags [2]int
 
+//Mutex used for membershipList and timers
+var mutex = &sync.Mutex{}
 
 //Message object passed b/w client and server
 type message struct {
@@ -56,6 +60,11 @@ func (slice memList) Swap(i, j int)      { slice[i], slice[j] = slice[j], slice[
 var logfile *os.File
 var errlog *log.Logger
 var infolog *log.Logger
+
+//For simulating packet loss in percent
+const PACKET_LOSS = 0
+
+var packets_lost int
 
 func main(){
 	
@@ -168,28 +177,40 @@ func messageServer(){
 						node := member{msg.Host, time.Now().Format(time.RFC850)}  //TODO check time format
 						//todo check all conditions and if ok append to the membership list
 						if checkTimeStamp(node) == 0 {
-							//create a lock
+							mutex.Lock()
 							resetTimers()
 							membershipList = append(membershipList, node)
 							sort.Sort(memList(membershipList))
-							//release the lock
+							mutex.Unlock()							
 						}					
 						//check the possible conditions and if all good write to File. Also check error conditions
 						go writeMLtoFile();
 						sendList()
 				case "Leaving":
+						mutex.Lock()
 						resetTimers()
 						propagateMsg(msg)
-				case "Acknowledgement":
+						mutex.Unlock()	
+				case "SYN":
+						infoCheck("Syn received from: "+msg.Host)
+						sendAck(msg.Host)
+				/*	if ack, check if ip that sent the message is either (currIndex + 1)%N or (currIndex + 2)%N
+					and reset the corresponding timer to MAX_TIME*/
+				case "ACK":
 						if msg.Host == membershipList[(getIndex()+1)%len(membershipList)].Host {
-							fmt.Print("ACK received from ")
-							fmt.Println(msg.Host)
+							infoCheck("ACK received from "+msg.Host)
 							timers[0].Reset(MAX_TIME)
-						}else if msg.Host == membershipList[(getIndex()+2)%len(membershipList)].Host {
-							fmt.Print("ACK received from ")
-							fmt.Println(msg.Host)
+						} else if msg.Host == membershipList[(getIndex()+2)%len(membershipList)].Host {
+							infoCheck("ACK received from "+msg.Host)
 							timers[1].Reset(MAX_TIME)
 						}
+						
+						//if message status is failed, propagate the message (timers will be taken care of in checkLastAck
+				case "Failed":
+						//resetTimers taken care in checkLastAck
+						mutex.Lock()
+						propagateMsg(msg)  //Ideally the logic executed should be same as leaving */
+						mutex.Unlock()		
 			}
 	}
 	
@@ -216,10 +237,10 @@ func introducerMachineServer() {
 		errorCheck(err)
 
 		//restart timers if membershipList is updated
-		//Make a lock
+		mutex.Lock()	
 		resetTimers()
 		membershipList = mList
-		//Release a lock
+		mutex.Unlock()
 
 		var msg = "New VM joined the group: \n\t["
 		var size = len(mList) - 1
@@ -231,15 +252,62 @@ func introducerMachineServer() {
 				msg += "]"
 			}
 		}
-		fmt.Println("Message received: ", msg)
 		infoCheck(msg)
 	}
 }
 
-func sendSyn(){
-	
-}
+//VM's are marked as failed if they have not responded with an ACK within MAX_TIME
+//2 checkLastAck calls persist at any given time, one to check the VM at (currIndex + 1)%N and one to
+//check the VM (currIndex + 2)%N, where N is the size of the membershipList
+//relativeIndex can be 1 or 2 and indicates what VM the function to watch
+//A timer for each of the two VM counts down from MAX_TIME and is reset whenever an ACK is received (handled in
+// messageServer function.
+//Timers are reset whenever the membershipList is modified
+//The timer will reach 0 if an ACK isn't received from the corresponding VM
+// within MAX_TIME, or the timer is reset. If a timer was reset, the corresponding resetFlag will be 1
+// and indicate that checkLastAck should be called again and that the failure detection should not be called
+//If a timer reaches 0 because an ACK was not received in time, the VM is marked as failed and the message is
+//propagated to the next 2 VM's in the membershipList. Both timers are then restarted.
+func checkLastAck(relativeIndex int) {
+	//Wait until number of members in group is at least MIN_HOSTS before checking for ACKs
+	for len(membershipList) < MIN_HOSTS {
+		time.Sleep(100 * time.Millisecond)
+	}
 
-func checkLastAck(index int){
+	//Get host at (currIndex + relativeIndex)%N
+	host := membershipList[(getIndex()+relativeIndex)%len(membershipList)].Host
+	infoCheck("Checking "+string(relativeIndex)+ ": "+host )
 	
-}
+
+	//Create a new timer and hold until timer reaches 0 or is reset
+	timers[relativeIndex-1] = time.NewTimer(MAX_TIME)
+	<-timers[relativeIndex-1].C
+
+	/*	3 conditions will prevent failure detection from going off
+		1. Number of members is less than the MIN_HOSTS
+		2. The target host's relative index is no longer the same as when the checkLastAck function was called. Meaning
+		the membershipList has been updated and the checkLastAck should update it's host
+		3. resetFlags for the corresponding timer is set to 1, again meaning that the membership list was updated and
+		checkLastack needs to reset the VM it is monitoring.*/
+	mutex.Lock()
+	if len(membershipList) >= MIN_HOSTS && getRelativeIndex(host) == relativeIndex && resetFlags[relativeIndex-1] != 1 {
+		msg := message{membershipList[(getIndex()+relativeIndex)%len(membershipList)].Host, "Failed", time.Now().Format(time.RFC850)}
+		fmt.Print("Failure detected: ")
+		fmt.Println(msg.Host)
+		propagateMsg(msg)
+
+	}
+	//If a failure is detected for one timer, reset the other as well.
+	if resetFlags[relativeIndex-1] == 0 {
+		infoCheck("Force stopping timer "+string(relativeIndex))
+		resetFlags[relativeIndex%2] = 1
+		timers[relativeIndex%2].Reset(0)
+	} else {
+		resetFlags[relativeIndex-1] = 0
+	}
+
+	mutex.Unlock()
+	go checkLastAck(relativeIndex)
+
+}	
+
