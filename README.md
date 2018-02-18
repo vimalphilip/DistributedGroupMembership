@@ -45,11 +45,16 @@ other nodes remove this node from their membership list. If the node has gone do
 it will not be part of the group if it comes back up. It has to send a new join request to be part of the group again.
 The time in which the node has to send an ACK to show that it's alive is 250 milliseconds.
 
+Any node in the group can do a distributed Grep of the logFile to find out about the events that have been logged,
+and thus will get an idea of how the state has been reached. Distributed grep will be run on current members of the group 
+as is available from the membership list
+
 Notes
 -----
 1. When the membership list gets updated, the timers to keep track of the heartbeat will be reset.
 2. When the introducer is down, new node joining requests cannot be processed until the introducer comes back up
 3. However, when the introducer is down, other functions like leaving and failure detections will be active
+4. Grep functionality is taken from https://github.com/vimalphilip/DistributedGrep and made available as a an option
 
 
 
