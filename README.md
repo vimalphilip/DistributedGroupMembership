@@ -4,7 +4,7 @@ Language : GO
 
 
 Assumptions: 
-Minimum number of nodes in the group is 4
+Minimum number of nodes in the group is 4,
 A maximum of 3 simultaneous node failures can happen in the group
 
 Design
