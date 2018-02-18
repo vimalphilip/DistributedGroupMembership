@@ -12,7 +12,7 @@ A maximum of 3 simultaneous node failures can happen in the group
 
 Design
 ------
-Each machine maintains a sorted, full membership list which is used to monitor the next two
+Each machine maintains a sorted, full membership list which is used to monitor the next three
 machines in the system ring by using SYN->ACK messages. The protocol uses an
 introducer to accept and handle pings from newly joining members. Every process stores the IP
 address of the introducer as a constant so that at startup it knows what VM to ping when
