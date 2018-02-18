@@ -111,7 +111,8 @@ func main(){
 		fmt.Println("1 -> Print membership list")
 		fmt.Println("2 -> Show IP address of this host")
 		fmt.Println("3 -> Join group")
-		fmt.Println("4 -> Leave group\n")
+		fmt.Println("4 -> Leave group")
+		fmt.Println("5 -> Distributed Grep\n")
 		input, _ := reader.ReadString('\n')
 		switch input {
 		case "1\n":
@@ -143,6 +144,10 @@ func main(){
 			} else {
 				fmt.Println("You are currently not connected to a group")
 			}
+		case "5\n":
+			fmt.Println("Enter the grep parameters. Sample syntax <-c abcd>  \n")
+			input, _ := reader.ReadString('\n')	
+			go grepClient(input)
 		default:
 			fmt.Println("Invalid command")
 		}
