@@ -4,15 +4,14 @@ Protocol : SWIM Protocol
 Language : GO
 
 
-Assumptions: 
-
+Assumptions
+-----------
 Minimum number of nodes in the group is 4
 
 A maximum of 3 simultaneous node failures can happen in the group
 
 Design
 ------
-
 Each machine maintains a sorted, full membership list which is used to monitor the next two
 machines in the system ring by using SYN->ACK messages. The protocol uses an
 introducer to accept and handle pings from newly joining members. Every process stores the IP
