@@ -59,6 +59,21 @@ func infoCheck(info string) {
 	infolog.Println(info)
 }
 
+//Helper function to log failure information
+func failureCheck(fail string) {
+	faillog.Println(fail)
+}
+
+//Helper function to log leaving information
+func leaveCheck(leave string) {
+	faillog.Println(leave)
+}
+
+//Helper function to log joining information
+func joinCheck(join string) {
+	faillog.Println(join)
+}
+
 //Helper function to hard reset both timers (stop both and set resetFlags to 1)
 func resetTimers() {
 	resetFlags[0] = 1
@@ -88,12 +103,14 @@ func setupAndInitialize() {
 	logfile, _ := os.OpenFile("logfile.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	errlog = log.New(logfile, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
 	infolog = log.New(logfile, "INFO: ", log.Ldate|log.Ltime)
-
+	joinlog = log.New(logfile, "JOINING: ", log.Ldate|log.Ltime)
+	leavelog = log.New(logfile, "LEAVING: ", log.Ldate|log.Ltime)
+	faillog = log.New(logfile, "FAILED: ", log.Ldate|log.Ltime)
+	
 	
 	if logfile_exists == 1 {
-		//TODO
+		//TODO?
 	}
-	
 }
 
 //get local IP address in the form of a string

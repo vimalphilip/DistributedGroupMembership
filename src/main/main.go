@@ -31,6 +31,9 @@ var timers [2]*time.Timer
 //1 = timers were forcefully stopped
 var resetFlags [2]int
 
+//Used if introducer crashes and reboots using a locally stored membership list
+var validFlags []int
+
 //Mutex used for membershipList and timers
 var mutex = &sync.Mutex{}
 
@@ -60,6 +63,9 @@ func (slice memList) Swap(i, j int)      { slice[i], slice[j] = slice[j], slice[
 var logfile *os.File
 var errlog *log.Logger
 var infolog *log.Logger
+var joinlog *log.Logger
+var leavelog *log.Logger
+var faillog *log.Logger
 
 //For simulating packet loss in percent
 const PACKET_LOSS = 0
@@ -89,10 +95,24 @@ func main(){
 		if _, err := os.Stat(FILE_PATH); os.IsNotExist(err) {
 			writeMLtoFile()
 		} else {
-			//TODO Logic to read file from the directory and convert to membershipList
+			fmt.Println("\nA membership list exists in the current directory.")
+			fmt.Println("Would you like to restart the connection using the existing membership list? y/n\n")
+			input, _ := reader.ReadString('\n')
+			switch input {
+			case "y\n":
+				infoCheck("Restarting master...")
+				fileToML() 			//convert the file in the directory to membershipList 
+				checkMLValid()
+				checkValidFlags()
+				writeMLtoFile()
+				sendList()
+			case "n\n":
+				writeMLtoFile()
+			default:
+				fmt.Println("Invalid command")
 			}
+		}
 	}
-	
 	
 	// start sending sync functions and check for acks in seperate threads
 	go sendSyn()
@@ -126,7 +146,7 @@ func main(){
 				if isConnected == 0 {
 					fmt.Println("Joining group")
 					connectToIntroducer()
-					infoCheck(currHost + " is connecting to introducer")
+					joinCheck(currHost + " is connecting to introducer")
 					isConnected = 1
 				} else {
 					fmt.Println("I am already connected to the group")
@@ -138,14 +158,14 @@ func main(){
 			if isConnected == 1 {
 				fmt.Println("Leaving group")
 				leaveGroup()
-				infoCheck(currHost + " left group")
+				leaveCheck(currHost + " left group")
 				os.Exit(0)
 
 			} else {
 				fmt.Println("You are currently not connected to a group")
 			}
 		case "5\n":
-			fmt.Println("Enter the grep parameters. Sample syntax <-c abcd>  \n")
+			fmt.Println("Enter the grep string/regular-expression. Sample syntax < -c abcd >  \n")
 			input, _ := reader.ReadString('\n')	
 			go grepClient(input)
 		default:
@@ -299,6 +319,7 @@ func checkLastAck(relativeIndex int) {
 		msg := message{membershipList[(getIndex()+relativeIndex)%len(membershipList)].Host, "Failed", time.Now().Format(time.RFC850)}
 		fmt.Print("Failure detected: ")
 		fmt.Println(msg.Host)
+		failureCheck("Failure detected: " + msg.Host)
 		propagateMsg(msg)
 
 	}

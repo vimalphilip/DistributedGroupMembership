@@ -1,14 +1,12 @@
 package main
 
 import (
-	
-	"net"
-	"fmt"
-	"encoding/gob"
 	"bytes"
+	"encoding/gob"
+	"fmt"
+	"net"
 	"time"
-	
-
+	"math/rand"
 )
 
 /*
@@ -18,40 +16,40 @@ import (
 
 */
 
-func sendMsg(msg message, targetHosts [] string){
+func sendMsg(msg message, targetHosts []string) {
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(msg); err != nil {
 		errorCheck(err)
 	}
-	
+
 	localIP, _, _ := net.ParseCIDR(currHost)
-	localAddr, err := net.ResolveUDPAddr("udp", localIP.String()+ ":0")
+	localAddr, err := net.ResolveUDPAddr("udp", localIP.String()+":0")
 	errorCheck(err)
-	
+
 	for _, host := range targetHosts {
 		if msg.Status == "Leaving" || msg.Status == "Failed" {
-			fmt.Println( "Propogating ", msg, " to :", host)  
+			fmt.Println("Propogating ", msg, " to :", host)
 		}
 		ip, _, _ := net.ParseCIDR(host)
-		
-		serverAddr, err := net.ResolveUDPAddr("udp",ip.String()+ ":8010")
+
+		serverAddr, err := net.ResolveUDPAddr("udp", ip.String()+":8010")
 		errorCheck(err)
-		conn, err :=net.DialUDP("udp", localAddr, serverAddr)
+		conn, err := net.DialUDP("udp", localAddr, serverAddr)
 		errorCheck(err)
-		
-/*		Packet loss check and proceed
+
 		randNum := rand.Intn(100)
-		fmt.Print("Random number")
-		
-		*/
-		_, err = conn.Write(buf.Bytes())
-		errorCheck(err)
+		infoCheck("Random number = " + string(randNum))
+
+		if !((msg.Status == "SYN" || msg.Status == "ACK" || msg.Status == "Failed" || msg.Status == "Leaving") && randNum < PACKET_LOSS) {
+			_, err = conn.Write(buf.Bytes())
+			errorCheck(err)
+		} else {
+			packets_lost++
+			fmt.Print(packets_lost," Message failed to send becaue of packet loss: ",msg)
+		}
 	}
-	
-	
 
 }
-
 
 //VM's ping the next 2 members in the membershipList for an ACK
 func sendSyn() {
@@ -78,23 +76,22 @@ func sendAck(host string) {
 	sendMsg(msg, targetHosts)
 }
 
-
 //Message sent to introducer from a VM to connect to the group
-func connectToIntroducer(){ 
+func connectToIntroducer() {
 	msg := message{currHost, "Joining", time.Now().Format(time.RFC850)}
 	fmt.Println("Message transfered: ", msg)
 	var targetHosts = make([]string, 1)
 	targetHosts[0] = INTRODUCER
 
 	sendMsg(msg, targetHosts)
-	
+
 }
 
 //Leave group
 //Message sent to previous 2 VM's in membershiplist notifying that the VM is leaving the group
-func leaveGroup(){
+func leaveGroup() {
 	msg := message{currHost, "Leaving", time.Now().Format(time.RFC850)}
-	
+
 	var targetHosts = make([]string, 2) //make a string array of size 2 to send to previous 2 VM's
 	for i := 1; i < 3; i++ {
 		var targetHostIndex = (getIndex() - i) % len(membershipList)
@@ -108,15 +105,14 @@ func leaveGroup(){
 
 }
 
-
-/* Called when messages need to be propogated to the rest of the VM's. 
-Example: when member leaves or fails. 
+/* Called when messages need to be propogated to the rest of the VM's.
+Example: when member leaves or fails.
 Messages are propogated to the next two members in the membershipList
-If a member is not in the local membershipList then the message is ignored i.e if 
-a member Ip address is to be removed and its already not present it means that its already removed and 
+If a member is not in the local membershipList then the message is ignored i.e if
+a member Ip address is to be removed and its already not present it means that its already removed and
 change has been made.
 If member is there in the membershipList, call updateML to compare the timestamps and updates the membershipList
-The message is then propogated to the next 2 VM's in the membershipList 
+The message is then propogated to the next 2 VM's in the membershipList
 */
 func propagateMsg(msg message) {
 	var hostIndex = -1
@@ -126,7 +122,7 @@ func propagateMsg(msg message) {
 			break
 		}
 	}
-	if hostIndex == -1 {  // case where node is already removed and hence could not find the node in the Mlist
+	if hostIndex == -1 { // case where node is already removed and hence could not find the node in the Mlist
 		return
 	}
 
@@ -138,9 +134,8 @@ func propagateMsg(msg message) {
 	targetHosts[1] = membershipList[(getIndex()+2)%len(membershipList)].Host
 
 	sendMsg(msg, targetHosts)
-		
-}
 
+}
 
 //Called by the introducer if a new member joins the group
 func sendList() {
