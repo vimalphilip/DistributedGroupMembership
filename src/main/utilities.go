@@ -78,8 +78,10 @@ func joinCheck(join string) {
 func resetTimers() {
 	resetFlags[0] = 1
 	resetFlags[1] = 1
+	resetFlags[2] = 1
 	timers[0].Reset(0)
 	timers[1].Reset(0)
+	timers[2].Reset(0)
 }
 
 //Sets currHost to local IP (as a string)
@@ -90,8 +92,10 @@ func setupAndInitialize() {
 	initializeML()
 	timers[0] = time.NewTimer(MAX_TIME)
 	timers[1] = time.NewTimer(MAX_TIME)
+	timers[2] = time.NewTimer(MAX_TIME)
 	timers[0].Stop()
 	timers[1].Stop()
+	timers[2].Stop()
 	
 	rand.Seed(time.Now().UTC().UnixNano())
 	
@@ -130,6 +134,8 @@ func getRelativeIndex(host string) int {
 		return 1
 	} else if strings.Compare(membershipList[(localIndex+2)%len(membershipList)].Host, host) == 0 {
 		return 2
-	}
+	} else if strings.Compare(membershipList[(localIndex+3)%len(membershipList)].Host, host) == 0 {
+		return 3
+	}	
 	return -1
 }

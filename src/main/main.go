@@ -17,7 +17,7 @@ import (
 const INTRODUCER = "172.31.36.139/20"		//IP Address of the introducer 
 const FILE_PATH = "MembershipList.txt"		//File path of membership list
 const MAX_TIME = time.Millisecond * 2500	//Max time a VM has to wait for the Syn/Ack message
-const MIN_HOSTS = 5 						//Minimum number of VM's in the group before Syn/Ack begins
+const MIN_HOSTS = 4						//Minimum number of VM's in the group before Syn/Ack begins
 
 
 var currHost string    						//	IP of the local machine
@@ -26,10 +26,10 @@ var membershipList = make([]member, 0)		//Contains all members connected to the 
 
 
 //We need 2 timers to keep track of the connected nodes
-var timers [2]*time.Timer
+var timers [3]*time.Timer
 //We also need 2 flags to keep track of nodes voluntarily leaving or crashed
 //1 = timers were forcefully stopped
-var resetFlags [2]int
+var resetFlags [3]int
 
 //Used if introducer crashes and reboots using a locally stored membership list
 var validFlags []int
@@ -118,6 +118,7 @@ func main(){
 	go sendSyn()
 	go checkLastAck(1)
 	go checkLastAck(2)
+	go checkLastAck(3)
 	
 	
 	//Take inputs from the console on what to do?
@@ -136,8 +137,12 @@ func main(){
 		input, _ := reader.ReadString('\n')
 		switch input {
 		case "1\n":
-			for _, element := range membershipList {
+			if isConnected == 1 || currHost == INTRODUCER {
+					for _, element := range membershipList {
 				fmt.Println(element)
+					}
+			} else {
+				fmt.Println("You are currently not connected to the group. Only nodes part of the group can see the membership list")
 			}
 		case "2\n":
 			fmt.Println(currHost)
@@ -219,7 +224,7 @@ func messageServer(){
 				case "SYN":
 						infoCheck("Syn received from: "+msg.Host)
 						sendAck(msg.Host)
-				/*	if ack, check if ip that sent the message is either (currIndex + 1)%N or (currIndex + 2)%N
+				/*	if ack, check if ip that sent the message is either (currIndex + 1)%N or (currIndex + 2)%N or (currIndex + 2)%N
 					and reset the corresponding timer to MAX_TIME*/
 				case "ACK":
 						if msg.Host == membershipList[(getIndex()+1)%len(membershipList)].Host {
@@ -228,14 +233,29 @@ func messageServer(){
 						} else if msg.Host == membershipList[(getIndex()+2)%len(membershipList)].Host {
 							infoCheck("ACK received from "+msg.Host)
 							timers[1].Reset(MAX_TIME)
+						} else if msg.Host == membershipList[(getIndex()+3)%len(membershipList)].Host {
+							infoCheck("ACK received from "+msg.Host)
+							timers[2].Reset(MAX_TIME)
 						}
-						
 						//if message status is failed, propagate the message (timers will be taken care of in checkLastAck
 				case "Failed":
 						//resetTimers taken care in checkLastAck
 						mutex.Lock()
-						propagateMsg(msg)  //Ideally the logic executed should be same as leaving */
-						mutex.Unlock()		
+						propagateMsg(msg)  //Ideally the logic executed should be same as leaving 
+						mutex.Unlock()
+				case "isAlive":
+						iamAlive()
+						/*	received by introducer. valid flags will initially contain an array of 0's corresponding to each member
+							in the membershipList. The value will be updated to 1 if an iamAlive is received from the corresponding VM */
+				case "iamAlive":
+						for i, element := range membershipList {
+							if msg.Host == element.Host {
+								validFlags[i] = 1
+									break
+								}
+							}
+
+		
 			}
 	}
 	
@@ -328,6 +348,8 @@ func checkLastAck(relativeIndex int) {
 		infoCheck("Force stopping timer "+string(relativeIndex))
 		resetFlags[relativeIndex%2] = 1
 		timers[relativeIndex%2].Reset(0)
+		resetFlags[relativeIndex%3] = 1
+		timers[relativeIndex%3].Reset(0)
 	} else {
 		resetFlags[relativeIndex-1] = 0
 	}

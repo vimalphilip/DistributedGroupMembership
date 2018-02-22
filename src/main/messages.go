@@ -39,27 +39,30 @@ func sendMsg(msg message, targetHosts []string) {
 
 		randNum := rand.Intn(100)
 		infoCheck("Random number = " + string(randNum))
+		
+		//TO SIMULATE PACKET LOSS CHANGE THE 'PACKET_LOSS' constant from 0 to a valid +ve number
 
 		if !((msg.Status == "SYN" || msg.Status == "ACK" || msg.Status == "Failed" || msg.Status == "Leaving") && randNum < PACKET_LOSS) {
 			_, err = conn.Write(buf.Bytes())
 			errorCheck(err)
 		} else {
 			packets_lost++
-			fmt.Print(packets_lost," Message failed to send becaue of packet loss: ",msg)
+			fmt.Print(packets_lost," Message(s) could not be sent because of packet loss: ",msg)
 		}
 	}
 
 }
 
-//VM's ping the next 2 members in the membershipList for an ACK
+//VM's ping the next 3 members in the membershipList for an ACK
 func sendSyn() {
 	for {
 		N := len(membershipList)
 		if N >= MIN_HOSTS {
 			msg := message{getIP(), "SYN", time.Now().Format(time.RFC850)}
-			var targetHosts = make([]string, 2)
+			var targetHosts = make([]string, 3)
 			targetHosts[0] = membershipList[(getIndex()+1)%len(membershipList)].Host
 			targetHosts[1] = membershipList[(getIndex()+2)%len(membershipList)].Host
+			targetHosts[2] = membershipList[(getIndex()+3)%len(membershipList)].Host
 
 			sendMsg(msg, targetHosts)
 		}
@@ -88,12 +91,12 @@ func connectToIntroducer() {
 }
 
 //Leave group
-//Message sent to previous 2 VM's in membershiplist notifying that the VM is leaving the group
+//Message sent to previous 3 VM's in membershiplist notifying that the VM is leaving the group
 func leaveGroup() {
 	msg := message{currHost, "Leaving", time.Now().Format(time.RFC850)}
 
-	var targetHosts = make([]string, 2) //make a string array of size 2 to send to previous 2 VM's
-	for i := 1; i < 3; i++ {
+	var targetHosts = make([]string, 3) //make a string array of size 3 to send to previous 3 VM's
+	for i := 1; i < 4; i++ {
 		var targetHostIndex = (getIndex() - i) % len(membershipList)
 		if targetHostIndex < 0 {
 			targetHostIndex = len(membershipList) + targetHostIndex
@@ -112,7 +115,7 @@ If a member is not in the local membershipList then the message is ignored i.e i
 a member Ip address is to be removed and its already not present it means that its already removed and
 change has been made.
 If member is there in the membershipList, call updateML to compare the timestamps and updates the membershipList
-The message is then propogated to the next 2 VM's in the membershipList
+The message is then propogated to the next 3 VM's in the membershipList
 */
 func propagateMsg(msg message) {
 	var hostIndex = -1
@@ -129,9 +132,10 @@ func propagateMsg(msg message) {
 	// msgCheck(msg)
 	updateML(hostIndex, msg)
 
-	var targetHosts = make([]string, 2)
+	var targetHosts = make([]string, 3)
 	targetHosts[0] = membershipList[(getIndex()+1)%len(membershipList)].Host
 	targetHosts[1] = membershipList[(getIndex()+2)%len(membershipList)].Host
+	targetHosts[2] = membershipList[(getIndex()+3)%len(membershipList)].Host
 
 	sendMsg(msg, targetHosts)
 
@@ -161,4 +165,15 @@ func sendList() {
 			errorCheck(err)
 		}
 	}
+}
+
+//Response from VM's to the introducer in response to isAlive. Sent to indicate to the INTRODUCER
+//that the VM is still connected to the group so the INRODUCER doesn't delete it from its membershiplist
+func iamAlive() {
+	msg := message{currHost, "iamAlive", time.Now().Format(time.RFC850)}
+	var targetHosts = make([]string, 1)
+	targetHosts[0] = INTRODUCER
+
+	sendMsg(msg, targetHosts)
+
 }
