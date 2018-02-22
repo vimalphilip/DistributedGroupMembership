@@ -1,3 +1,4 @@
+This is actually the draft of the report Readme will be added shortly
 
 Protocol : SWIM Protocol
 
@@ -48,6 +49,49 @@ The time in which the node has to send an ACK to show that it's alive is 250 mil
 Any node in the group can do a distributed Grep of the logFile to find out about the events that have been logged,
 and thus will get an idea of how the state has been reached. Distributed grep will be run on current members of the group 
 as is available from the membership list
+
+
+State 1
+------
+Introducer starts and Checks for MList: -> shows only Introducer in the MList -> done
+
+State 2
+------
+I am the introducer 
+
+State 3
+------
+Non introducer node checks Mlist without joining: -> shows not allowed 
+
+State 4
+------
+Non introducer leaves without joining: -> shows not part of the group 
+
+State 5
+------
+Non introducer joins the group: -> shows joined the group updates the Mlist of introducer and finally propagates to itself. Change will be visible in all the nodes 
+eventually 
+
+State 6	
+------
+Any node leaves the group voluntarily: -> shows propagating Leaving message to next 3 VM's and Mlist gets updated everywhere -> done
+
+State 7
+------
+Up to 3 nodes fail: -> shows propagating Failed message to next 3 VM's and Mlist gets updated everywhere -> done
+
+State 8
+------
+Introducer goes down -> Joining does not happen but all other functions intact
+
+State 9
+------
+Introducer comes back up and does a fresh start with new Group and no other group members
+
+State 10
+-------
+Introducer comes back up and wants to use the existing Mlist (the Mlist before it went down) : -> Introducer takes the Mlist locally and sends 
+isAlive messages to the group members to see if they are still up and on the basis of the iamAlive results, introducer updates the Mlist
 
 Notes
 -----
