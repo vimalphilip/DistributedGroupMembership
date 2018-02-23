@@ -48,7 +48,7 @@ other nodes remove this node from their membership list. If the node has gone do
 it will not be part of the group if it comes back up. It has to send a new join request to be part of the group again.
 The time in which the node has to send an ACK to show that it's alive is 250 milliseconds.
 
-IsAlive: This message is sent by the introducer to all the nodes in the local membership file when it comes back up after failure or shutdown. This is useful because other nodes may have left the group while the introduer was down and hence introducer needs to make changes to its membership list accordingly. 
+IsAlive: This message is sent by the introducer to all the nodes in the local membership file when the introducer comes back up after failure or shutdown. This is useful because other nodes may have left the group while the introduer was down, and hence introducer needs to make changes to its membership list accordingly. Also, new nodes would not have joined because the introducer was down. This setup preserves the consistency of the membership list in the case of introducer failures.
 
 IamAlive: This message is sent as a response by all the nodes still in the group for the isAlive message sent by the introducer. It gives an acknowledgement to the introducer that it is still part of the group.
 
@@ -100,7 +100,7 @@ Introducer comes back up and wants to use the existing Mlist (the Mlist before i
 Notes
 -----
 1. When the membership list gets updated, the timers to keep track of the heartbeat will be reset.
-2. When the introducer is down, new node joining requests cannot be processed until the introducer comes back up
+2. When the introducer is down, new node joining requests cannot be processed until the introducer comes back up.
 3. However, when the introducer is down, other functions like leaving and failure detections will be active
 4. Grep functionality is taken from https://github.com/vimalphilip/DistributedGrep and made available as a an option
 
