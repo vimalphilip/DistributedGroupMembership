@@ -1,8 +1,10 @@
-This is actually the draft of the report Readme will be added shortly
+This is actually the draft of the report. Readme will be added shortly
 
 Protocol : SWIM Protocol
 
 Language : GO
+
+Topology for Group Membership: Extended Ring Structure
 
 
 Assumptions
@@ -46,6 +48,10 @@ other nodes remove this node from their membership list. If the node has gone do
 it will not be part of the group if it comes back up. It has to send a new join request to be part of the group again.
 The time in which the node has to send an ACK to show that it's alive is 250 milliseconds.
 
+IsAlive: This message is sent by the introducer to all the nodes in the local membership file when it comes back up after failure or shutdown. This is useful because other nodes may have left the group while the introduer was down and hence introducer needs to make changes to its membership list accordingly. 
+
+IamAlive: This message is sent as a response by all the nodes still in the group for the isAlive message sent by the introducer. It gives an acknowledgement to the introducer that it is still part of the group.
+
 Any node in the group can do a distributed Grep of the logFile to find out about the events that have been logged,
 and thus will get an idea of how the state has been reached. Distributed grep will be run on current members of the group 
 as is available from the membership list
@@ -53,24 +59,23 @@ as is available from the membership list
 
 State 1
 ------
-Introducer starts and Checks for MList: -> shows only Introducer in the MList -> done
+Introducer starts and Checks for MList: -> shows only Introducer in the MList 
 
 State 2
 ------
-I am the introducer 
+If introducer tries to join the group: -> shows message "I am the introducer" to indicate that introducer should always be part of the group 
 
 State 3
 ------
-Non introducer node checks Mlist without joining: -> shows not allowed 
+Non introducer node checks Mlist without joining: -> shows not allowed since only group members can have access to the mList 
 
 State 4
 ------
-Non introducer leaves without joining: -> shows not part of the group 
+Non introducer leaves without joining: -> shows not part of the group to leave the group
 
 State 5
 ------
-Non introducer joins the group: -> shows joined the group updates the Mlist of introducer and finally propagates to itself. Change will be visible in all the nodes 
-eventually 
+Non introducer joins the group: -> shows "joined the group" and updates the Mlist of introducer and finally propagates to all the nodes. Change will be visible in all the nodes eventually including the node which just joined.
 
 State 6	
 ------
@@ -78,20 +83,19 @@ Any node leaves the group voluntarily: -> shows propagating Leaving message to n
 
 State 7
 ------
-Up to 3 nodes fail: -> shows propagating Failed message to next 3 VM's and Mlist gets updated everywhere -> done
+Up to 3 nodes fail: -> shows propagating Failed message to next 3 VM's and Mlist gets updated everywhere
 
 State 8
 ------
-Introducer goes down -> Joining does not happen but all other functions intact
+Introducer goes down: -> Joining does not happen, but all other functions intact and will work seamlessly
 
 State 9
 ------
-Introducer comes back up and does a fresh start with new Group and no other group members
+Introducer comes back up and does a fresh start with new Group and no other group members.
 
 State 10
 -------
-Introducer comes back up and wants to use the existing Mlist (the Mlist before it went down) : -> Introducer takes the Mlist locally and sends 
-isAlive messages to the group members to see if they are still up and on the basis of the iamAlive results, introducer updates the Mlist
+Introducer comes back up and wants to use the existing Mlist (the Mlist before it went down) : -> Introducer takes the Mlist locally and sends isAlive messages to the group members to see if they are still up and on the basis of the iamAlive results, introducer updates the Mlist. State 9 or 10 can be decided based on user input.
 
 Notes
 -----
