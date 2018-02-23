@@ -39,7 +39,7 @@ introducer then updates its own membership list, and propagates this updated lis
 everybody on its membership list. This way, each machine updates its membership list and can
 appropriately change the members it is monitoring.
 
-Leaving: When leaving voluntarily, the node informs the previous 2 nodes that it is leaving. The 2 nodes 
+Leaving: When leaving voluntarily, the node informs the previous 3 nodes that it is leaving. The 2 nodes 
 now propogate the message throughout the ring, and the membership list in every other node gets updated.
 
 Crashing: A crashing or failure happens when the node does not sent a heartbeat back to the monitoring nodes(ACK)
